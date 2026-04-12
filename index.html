@@ -1,1 +1,11 @@
+
+
+
+
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>BlitzStats</title><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/><style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#04060f;color:#e8ecf4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;text-align:center;}</style></head><body><div style="font-family:'Bebas Neue',cursive;font-size:80px;letter-spacing:4px">Blitz<span style="color:#00e5ff">Stats</span></div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#00e5ff;margin:12px 0;letter-spacing:3px">AI SPORTS INTELLIGENCE · 21+</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#48576e;margin-top:8px">Full platform launching soon ⚡</div><div style="margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#2a4a3a">Entertainment only · Not betting advice · 21+ · 1-800-522-4700</div></body></html>
+
+curl -o ~/blitzstats/index.html https://blitzstats-live.html 2>/dev/null || echo "use file"
+nano ~/blitzstats/index.html
+sed -i '' 's|http://localhost:3001|http://localhost:3001|g' ~/blitzstats/index.html && git add . && git commit -m "Wire live odds API" && git push
+
+
