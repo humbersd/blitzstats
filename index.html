@@ -266,7 +266,7 @@ function AIModal({game,onClose}){
     if(!game)return;
     setLoading(true);setRes(null);
     const hS=game.hO>0?"+":"",aS=game.aO>0?"+":"";
-    fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+    fetch("https://api.headers:{"Content-Type":"application/json","x-api-key":"s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","anthropic-version":"2023-06-01"},anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:400,
         messages:[{role:"user",content:`Sharp sports betting analyst. Analyze this ${game.sport} matchup.\nGame: ${game.away} @ ${game.home}\nMoneyline: ${game.home} ${hS}${game.hO} | ${game.away} ${aS}${game.aO}\nTotal O/U: ${game.total}\nWrite 3-4 sentences of sharp analysis, then:\nBEST BET: [pick]\nCONFIDENCE: [number]%`}]})})
     .then(r=>r.json())
@@ -523,3 +523,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(
 </script>
 </body>
 </html>
+headers:{"Content-Type":"application/json","x-api-key":"s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","anthropic-version":"2023-06-01"},
+
