@@ -102,7 +102,7 @@ function AIModal({game,onClose}){
         messages:[{role:"user",content:`Sharp sports betting analyst. Analyze this ${game.sport} matchup.\nGame: ${game.away} @ ${game.home}\nMoneyline: ${game.home} ${hS}${game.hO} | ${game.away} ${aS}${game.aO}\nTotal O/U: ${game.total}\nWrite 3-4 sentences of sharp analysis, then:\nBEST BET: [pick]\nCONFIDENCE: [number]%`}]})})
     .then(r=>r.json())
     .then(d=>{
-      const text=d.content?.[0]?.text||"";
+      const text=d.content?.[0]?.text||d.completion||"";
       const pick=text.match(/BEST BET:\s*(.+)/i)?.[1]?.trim()||"See analysis";
       const conf=parseInt(text.match(/CONFIDENCE:\s*(\d+)/i)?.[1]||"65");
       const analysis=text.replace(/BEST BET:.+/gi,"").replace(/CONFIDENCE:.+/gi,"").trim();
