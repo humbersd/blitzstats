@@ -25,7 +25,7 @@ const cron     = require("node-cron");
 const axios    = require("axios");
 
 const app  = express();
-app.use(cors());
+app.use(cors({ origin: ['https://blitzstats.com', 'https://www.blitzstats.com'] }));
 app.use(express.json());
 
 // ── CONFIG ────────────────────────────────────────────────────
