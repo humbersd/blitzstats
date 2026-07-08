@@ -372,6 +372,19 @@ app.get("/api/status", (req, res) => {
     lineMovements:     store.lineMovements.length,
     uptime:            process.uptime(),
   });
+});app.post('/api/ai-pick', async (req, res) => {
+  try {
+    const response = await axios.post('https://api.anthropic.com/v1/messages', req.body, {
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── START ──────────────────────────────────────────────────────
