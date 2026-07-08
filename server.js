@@ -345,7 +345,7 @@ app.post("/api/ai-pick", async (req, res) => {
   const { prompt } = req.body;
   try {
     const r = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: "model: "claude-haiku-4-5",",
+      model: "claude-haiku-4-5"
       max_tokens: 400,
       messages: [{ role: "user", content: prompt }]
     }, {
