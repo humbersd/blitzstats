@@ -340,19 +340,18 @@ app.get("/api/line-movements", (req, res) => {
   });
 });
 
-// AI picks endpoint — proxies Anthropic API to avoid CORS
-app.post("/api/ai-pick", async (req, res) => {
-  const { prompt } = req.body;
+// AI picks endpoint
+app.post('/api/ai-pick', async (req, res) => {
   try {
-    const r = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: "claude-haiku-4-5",
+    const r = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-haiku-4-5',
       max_tokens: 400,
-      messages: [{ role: "user", content: prompt }]
+      messages: req.body.messages || [{ role: 'user', content: req.body.prompt || '' }]
     }, {
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
       }
     });
     res.json(r.data);
