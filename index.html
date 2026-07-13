@@ -53,9 +53,7 @@ function useLiveData(){
   const [games,setGames]=useState([]);
   const [status,setStatus]=useState({});
   const [loading,setLoading]=useState(true);
-  const [error,setError]=useState(null);
-  const [lastRefresh,setLastRefresh]=useState(null);
-
+  const [error,setError]=useState(null);setGames(data.games?.length ? data.games : DEMO_GAMES);
   const fetchGames=useCallback(async()=>{
     try{
       const res=await fetch(`${API_BASE}/api/games`);
