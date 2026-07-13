@@ -24,8 +24,8 @@ body{background:#04060f;color:#e8ecf4;font-family:'DM Sans',sans-serif;height:10
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
- const {useState,useEffect,useCallback}=React;
- const T={bg:"#04060f",surface:"#080c1a",card:"#0c1120",cardH:"#101828",border:"rgba(22,32,53,.8)",borderH:"rgba(0,229,255,.35)",accent:"#00e5ff",accentD:"#00b8cc",text:"#e8ecf4",textM:"#8899aa",green:"#00dc82",red:"#ff4d6a",orange:"#ff9f43"};
+const {useState,useEffect,useCallback}=React;
+const T={bg:"#04060f",surface:"#080c1a",card:"#0c1120",cardH:"#101828",border:"rgba(22,32,53,.8)",borderH:"rgba(0,229,255,.35)",accent:"#00e5ff",accentD:"#00b8cc",text:"#e8ecf4",textM:"#8899aa",green:"#00dc82",red:"#ff4d6a",orange:"#ff9f43"};
 const API_BASE="https://laudable-optimism-production-25f0.up.railway.app";
 const DEMO_GAMES=[
 {id:1,sport:"NBA",e:"🏀",home:"Lakers",away:"Celtics",time:"7:30 PM ET",hO:-110,aO:+105,total:224.5},
@@ -35,10 +35,9 @@ const DEMO_GAMES=[
 {id:5,sport:"NHL",e:"🏒",home:"Bruins",away:"Maple Leafs",time:"7:00 PM ET",hO:-130,aO:+110,total:6.0},
 ];
 const btn=(x={})=>({border:"none",cursor:"pointer",fontFamily:T.fB,fontWeight:600,transition:"all .2s",...x});
-const formC=(f)=>({hot:{bg:"rgba(0,214,143,.12)",c:T.green},warm:{bg:"rgba(255,107,53,.12)",c:T.orange},cold:{bg:"rgba(255,61,90,.12)",c:T.red}}[f]||{bg:"transparent",c:T.muted});
 
 function DisclBar(){
-  return React.createElement("div",{style:{background:"#020508",borderBottom:"1px solid rgba(0,229,255,.05)",padding:"6px 20px",fontFamily:T.fM,fontSize:10,color:"#2a4a3a",textAlign:"center",flexShrink:0}},
+  return React.createElement("div",{style:{background:"#020508",borderBottom:"1px solid rgba(0,229,255,.05)",padding:"6px 20px",fontSize:10,color:"#2a4a3a",textAlign:"center",flexShrink:0}},
     "⚠ ",React.createElement("strong",{style:{color:"#3a6a4a"}},"ENTERTAINMENT & INFORMATION ONLY"),
     " · Not betting advice · Must be ",React.createElement("strong",{style:{color:"#3a6a4a"}},"21+"),
     " · Problem gambling? ",React.createElement("strong",{style:{color:"#3a6a4a"}},"1-800-522-4700")
@@ -53,12 +52,14 @@ function useLiveData(){
   const [games,setGames]=useState([]);
   const [status,setStatus]=useState({});
   const [loading,setLoading]=useState(true);
-  const [error,setError]=useState(null);setGames(data.games?.length ? data.games : DEMO_GAMES);
-setGames(data.games||[]);
+  const [error,setError]=useState(null);
+  const [lastRefresh,setLastRefresh]=useState(null);
+
+  const fetchGames=useCallback(async()=>{
     try{
       const res=await fetch(`${API_BASE}/api/games`);
       const data=await res.json();
-      setGames(data.games||[]);
+      setGames(data.games&&data.games.length?data.games:DEMO_GAMES);
       setLastRefresh(new Date());
       setError(null);
     }catch(e){
@@ -94,18 +95,16 @@ function AIModal({game,onClose}){
   useEffect(()=>{
     if(!game)return;
     setLoading(true);setRes(null);
-    const hS=game.hO>0?"+":"",aS=game.aO>0?"+":"";
-    
- fetch(`${API_BASE}/api/ai-pick`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,messages:[{role:"user",content:"Analyze this "+game.sport+" matchup: "+game.away+" @ "+game.home+". Write 3-4 sentences of sharp analysis, then:\nBEST BET: [pick]\nCONFIDENCE: [number]%"}]})})
-        .then(r=>r.json())
-    .then(d=>{
-      const text=d.content?.[0]?.text||d.completion||"";
-      const pick=text.match(/BEST BET:\s*(.+)/i)?.[1]?.trim()||"See analysis";
-      const conf=parseInt(text.match(/CONFIDENCE:\s*(\d+)/i)?.[1]||"65");
-      const analysis=text.replace(/BEST BET:.+/gi,"").replace(/CONFIDENCE:.+/gi,"").trim();
-      setRes({analysis,pick,conf});setLoading(false);
-    })
-    .catch(()=>{setRes({analysis:"Unable to connect. Please try again.",pick:"N/A",conf:0});setLoading(false);});
+    fetch(`${API_BASE}/api/ai-pick`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:"Analyze this "+game.sport+" matchup: "+game.away+" @ "+game.home+". Write 3-4 sentences of sharp analysis, then:\nBEST BET: [pick]\nCONFIDENCE: [number]%"}]})})
+      .then(r=>r.json())
+      .then(d=>{
+        const text=d.content?.[0]?.text||d.completion||"";
+        const pick=text.match(/BEST BET:\s*(.+)/i)?.[1]?.trim()||"See analysis";
+        const conf=parseInt(text.match(/CONFIDENCE:\s*(\d+)/i)?.[1]||"65");
+        const analysis=text.replace(/BEST BET:.+/gi,"").replace(/CONFIDENCE:.+/gi,"").trim();
+        setRes({analysis,pick,conf});setLoading(false);
+      })
+      .catch(()=>{setRes({analysis:"Unable to connect. Please try again.",pick:"N/A",conf:0});setLoading(false);});
   },[game]);
   if(!game)return null;
   const cc=res?.conf>=80?T.accent:res?.conf>=70?T.green:T.red;
@@ -113,36 +112,36 @@ function AIModal({game,onClose}){
     React.createElement("div",{style:{background:T.card,border:"1px solid rgba(0,229,255,.2)",borderRadius:14,width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto",animation:"slideUp .3s ease both"}},
       React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 20px",borderBottom:`1px solid ${T.border}`,position:"sticky",top:0,background:T.card}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-          React.createElement("span",{style:{fontFamily:T.fD,fontSize:18,letterSpacing:".5px"}},"⚡ AI ANALYSIS"),
-          React.createElement("span",{style:{background:T.accentD,color:T.accent,fontFamily:T.fM,fontSize:9,padding:"2px 7px",borderRadius:3}},"LIVE")
+          React.createElement("span",{style:{fontSize:18,letterSpacing:".5px"}},"⚡ AI ANALYSIS"),
+          React.createElement("span",{style:{background:T.accentD,color:T.accent,fontSize:9,padding:"2px 7px",borderRadius:3}},"LIVE")
         ),
-        React.createElement("button",{onClick:onClose,style:{...btn(),background:"none",color:T.muted,fontSize:20}},"✕")
+        React.createElement("button",{onClick:onClose,style:{...btn(),background:"none",color:T.textM,fontSize:20}},"✕")
       ),
       React.createElement("div",{style:{padding:"12px 20px",background:"#050910",borderBottom:`1px solid ${T.border}`}},
         React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},
-          React.createElement("span",{style:{fontFamily:T.fD,fontSize:18}},[game.away]),
-          React.createElement("span",{style:{fontFamily:T.fM,fontSize:9,color:T.muted,padding:"2px 7px",border:`1px solid ${T.border}`,borderRadius:3}},`@ ${game.sport}`),
-          React.createElement("span",{style:{fontFamily:T.fD,fontSize:18}},[game.home])
+          React.createElement("span",{style:{fontSize:18}},[game.away]),
+          React.createElement("span",{style:{fontSize:9,color:T.textM,padding:"2px 7px",border:`1px solid ${T.border}`,borderRadius:3}},`@ ${game.sport}`),
+          React.createElement("span",{style:{fontSize:18}},[game.home])
         ),
-        React.createElement("div",{style:{fontFamily:T.fM,fontSize:10,color:T.muted}},[`${game.time} · O/U ${game.total}`])
+        React.createElement("div",{style:{fontSize:10,color:T.textM}},[`${game.time} · O/U ${game.total}`])
       ),
       React.createElement("div",{style:{padding:20}},
-        loading?React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,color:T.muted,fontFamily:T.fM,fontSize:12}},
+        loading?React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,color:T.textM,fontSize:12}},
           React.createElement("div",{style:{width:14,height:14,border:`2px solid ${T.border}`,borderTopColor:T.accent,borderRadius:"50%",animation:"spin .7s linear infinite"}}),
           "Claude AI analyzing this matchup..."
         ):React.createElement("div",null,
-          React.createElement("div",{style:{fontSize:13,lineHeight:1.85,color:T.sub,marginBottom:16}},[res.analysis]),
+          React.createElement("div",{style:{fontSize:13,lineHeight:1.85,marginBottom:16}},[res.analysis]),
           React.createElement("div",{style:{background:"rgba(0,229,255,.04)",border:"1px solid rgba(0,229,255,.13)",borderRadius:10,padding:16,marginBottom:12}},
-            React.createElement("div",{style:{fontFamily:T.fM,fontSize:9,color:T.muted,letterSpacing:2,marginBottom:6}},["⚡ BEST BET"]),
-            React.createElement("div",{style:{fontFamily:T.fD,fontSize:24,color:T.accent,letterSpacing:".5px",marginBottom:11}},[res.pick]),
+            React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2,marginBottom:6}},["⚡ BEST BET"]),
+            React.createElement("div",{style:{fontSize:24,color:T.accent,letterSpacing:".5px",marginBottom:11}},[res.pick]),
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
               React.createElement("div",{style:{flex:1,height:4,background:T.border,borderRadius:2,overflow:"hidden"}},
                 React.createElement("div",{style:{height:"100%",width:`${res.conf}%`,background:`linear-gradient(90deg,${T.accent},${T.green})`,borderRadius:2,transition:"width .8s ease"}})
               ),
-              React.createElement("span",{style:{fontFamily:T.fM,fontSize:11,color:cc,fontWeight:600}},[`${res.conf}%`])
+              React.createElement("span",{style:{fontSize:11,color:cc,fontWeight:600}},[`${res.conf}%`])
             )
           ),
-          React.createElement("div",{style:{fontSize:10,color:T.muted,fontFamily:T.fM,lineHeight:1.8,paddingTop:11,borderTop:`1px solid ${T.border}`}},
+          React.createElement("div",{style:{fontSize:10,color:T.textM,lineHeight:1.8,paddingTop:11,borderTop:`1px solid ${T.border}`}},
             "⚠ Entertainment & information only — not betting advice · Must be 21+ · Problem gambling: ",
             React.createElement("strong",{style:{color:"#3a6a4a"}},"1-800-522-4700")
           )
@@ -177,48 +176,48 @@ function Auth({onLogin}){
     if(!checks.terms){setErr("You must accept the terms.");return;}
     onLogin({name:form.name,email:form.email});
   };
-  const inp={width:"100%",background:"rgba(255,255,255,.03)",border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 13px",color:T.text,fontFamily:T.fM,fontSize:13,outline:"none",marginTop:5};
-  return React.createElement("div",{style:{height:"100%",overflowY:"auto",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:T.fB,padding:"32px 20px",position:"relative"}},
-    React.createElement("div",{style:{width:"100%",maxWidth:400,position:"relative",zIndex:1,animation:"fadeUp .4s ease both"}},
+  const inp={width:"100%",background:"rgba(255,255,255,.03)",border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 13px",color:T.text,fontSize:13,outline:"none",marginTop:5};
+  return React.createElement("div",{style:{height:"100%",overflowY:"auto",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px"}},
+    React.createElement("div",{style:{width:"100%",maxWidth:400,animation:"fadeUp .4s ease both"}},
       React.createElement("div",{style:{textAlign:"center",marginBottom:24}},
         React.createElement("div",{style:{display:"inline-flex",alignItems:"center",gap:8,marginBottom:6}},
-          React.createElement("div",{style:{width:36,height:36,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#000",fontFamily:T.fD,boxShadow:`0 0 16px rgba(0,229,255,.3)`}},"B"),
-          React.createElement("span",{style:{fontFamily:T.fD,fontSize:26,letterSpacing:"1px"}},"Blitz",React.createElement("span",{style:{color:T.accent}},"Stats"))
+          React.createElement("div",{style:{width:36,height:36,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#000",boxShadow:`0 0 16px rgba(0,229,255,.3)`}},"B"),
+          React.createElement("span",{style:{fontSize:26,letterSpacing:"1px"}},"Blitz",React.createElement("span",{style:{color:T.accent}},"Stats"))
         ),
-        React.createElement("div",{style:{fontFamily:T.fM,fontSize:10,color:T.muted}},"AI Sports Intelligence · 21+")
+        React.createElement("div",{style:{fontSize:10,color:T.textM}},"AI Sports Intelligence · 21+")
       ),
       React.createElement("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:28}},
         React.createElement("div",{style:{display:"flex",background:"rgba(255,255,255,.03)",borderRadius:8,padding:3,marginBottom:20}},
-          ["login","signup"].map(id=>React.createElement("button",{key:id,onClick:()=>{setTab(id);setErr("");},style:{...btn(),flex:1,padding:"8px",borderRadius:6,fontSize:13,background:tab===id?T.accent:"transparent",color:tab===id?"#000":T.muted}},id==="login"?"Log In":"Sign Up"))
+          ["login","signup"].map(id=>React.createElement("button",{key:id,onClick:()=>{setTab(id);setErr("");},style:{...btn(),flex:1,padding:"8px",borderRadius:6,fontSize:13,background:tab===id?T.accent:"transparent",color:tab===id?"#000":T.textM}},id==="login"?"Log In":"Sign Up"))
         ),
         tab==="login"?React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:13}},
           [["EMAIL","email","demo@blitzstats.com","email"],["PASSWORD","password","••••••••","password"]].map(([l,t,ph,k])=>
             React.createElement("div",{key:k},
-              React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:2}},[l]),
+              React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2}},[l]),
               React.createElement("input",{style:inp,type:t,placeholder:ph,value:form[k],onChange:set(k),onKeyDown:e=>e.key==="Enter"&&doLogin(),onFocus:e=>e.target.style.borderColor=T.accent,onBlur:e=>e.target.style.borderColor=T.border})
             )
           ),
-          err&&React.createElement("div",{style:{color:T.red,fontSize:12,fontFamily:T.fM,textAlign:"center"}},[err]),
+          err&&React.createElement("div",{style:{color:T.red,fontSize:12,textAlign:"center"}},[err]),
           React.createElement("button",{onClick:doLogin,disabled:loading,style:{...btn(),background:T.accent,color:"#000",padding:12,borderRadius:8,fontSize:14,opacity:loading?.6:1}},loading?"Verifying...":"Enter BlitzStats →"),
-          React.createElement("div",{style:{fontSize:11,color:T.muted,fontFamily:T.fM,textAlign:"center"}},"Demo: demo@blitzstats.com / demo123")
+          React.createElement("div",{style:{fontSize:11,color:T.textM,textAlign:"center"}},"Demo: demo@blitzstats.com / demo123")
         ):React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:11}},
           [["FULL NAME","text","Your Name","name"],["EMAIL","email","your@email.com","email"],["PASSWORD","password","Min 6 chars","password"]].map(([l,t,ph,k])=>
             React.createElement("div",{key:k},
-              React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:2}},[l]),
+              React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2}},[l]),
               React.createElement("input",{style:inp,type:t,placeholder:ph,value:form[k],onChange:set(k),onFocus:e=>e.target.style.borderColor=T.accent,onBlur:e=>e.target.style.borderColor=T.border})
             )
           ),
           [{k:"age",l:"I confirm I am 21 years of age or older and sports betting is legal in my jurisdiction."},{k:"terms",l:"I understand BlitzStats provides entertainment and informational content only — not betting or financial advice."}].map(c=>
             React.createElement("label",{key:c.k,style:{display:"flex",gap:8,alignItems:"flex-start",cursor:"pointer"}},
               React.createElement("input",{type:"checkbox",checked:checks[c.k],onChange:e=>setChecks(ch=>({...ch,[c.k]:e.target.checked})),style:{marginTop:3,flexShrink:0,accentColor:T.accent}}),
-              React.createElement("span",{style:{fontSize:11,color:T.muted,fontFamily:T.fM,lineHeight:1.6}},[c.l])
+              React.createElement("span",{style:{fontSize:11,color:T.textM,lineHeight:1.6}},[c.l])
             )
           ),
-          err&&React.createElement("div",{style:{color:T.red,fontSize:12,fontFamily:T.fM,textAlign:"center"}},[err]),
+          err&&React.createElement("div",{style:{color:T.red,fontSize:12,textAlign:"center"}},[err]),
           React.createElement("button",{onClick:doSignup,style:{...btn(),background:T.accent,color:"#000",padding:12,borderRadius:8,fontSize:14}},"Create Account →")
         )
       ),
-      React.createElement("div",{style:{textAlign:"center",marginTop:10,fontFamily:T.fM,fontSize:10,color:"#1e3a2e"}},"For entertainment only · 21+ · Gamble responsibly")
+      React.createElement("div",{style:{textAlign:"center",marginTop:10,fontSize:10,color:"#1e3a2e"}},"For entertainment only · 21+ · Gamble responsibly")
     )
   );
 }
@@ -234,70 +233,70 @@ function Dashboard({user,onLogout}){
   const sports=[{id:"all",i:"🌐",l:"All"},{id:"NBA",i:"🏀",l:"NBA"},{id:"NFL",i:"🏈",l:"NFL"},{id:"MLB",i:"⚾",l:"MLB"},{id:"NHL",i:"🏒",l:"NHL"}];
   const calcK=v=>{const b=parseFloat(v.b)||0,p=parseFloat(v.p)/100||0,d=parseFloat(v.o)||0;if(!b||!p||!d){setKelly(null);return;}const k=(p*(d-1)-(1-p))/(d-1),h=Math.max(0,k/2);setKelly({bet:(h*b).toFixed(2),pct:(h*100).toFixed(1)});};
   const setBkK=k=>e=>{const v={...bk,[k]:e.target.value};setBk(v);calcK(v);};
-  const inp={background:"rgba(255,255,255,.03)",border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 12px",color:T.text,fontFamily:T.fM,fontSize:12,outline:"none",width:"100%"};
+  const inp={background:"rgba(255,255,255,.03)",border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",width:"100%"};
   const isLive=status?.status==="live";
 
-  return React.createElement("div",{style:{height:"100%",display:"flex",flexDirection:"column",background:T.bg,color:T.text,fontFamily:T.fB}},
+  return React.createElement("div",{style:{height:"100%",display:"flex",flexDirection:"column",background:T.bg,color:T.text}},
     React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 24px",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}},
       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-        React.createElement("div",{style:{width:24,height:24,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#000",fontFamily:T.fD}},"B"),
-        React.createElement("span",{style:{fontFamily:T.fD,fontSize:16,letterSpacing:"1px"}},"Blitz",React.createElement("span",{style:{color:T.accent}},"Stats"))
+        React.createElement("div",{style:{width:24,height:24,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#000"}},"B"),
+        React.createElement("span",{style:{fontSize:16,letterSpacing:"1px"}},"Blitz",React.createElement("span",{style:{color:T.accent}},"Stats"))
       ),
       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",gap:5,background:T.accentD,border:"1px solid rgba(0,229,255,.18)",borderRadius:100,padding:"3px 10px 3px 7px"}},
           React.createElement("span",{style:{width:5,height:5,borderRadius:"50%",background:isLive?T.accent:"#ff4560",animation:"pulse 2s infinite"}}),
-          React.createElement("span",{style:{fontFamily:T.fM,fontSize:9,color:isLive?T.accent:"#ff4560"}},isLive?"LIVE DATA":"DEMO MODE")
+          React.createElement("span",{style:{fontSize:9,color:isLive?T.accent:"#ff4560"}},isLive?"LIVE DATA":"DEMO MODE")
         ),
-        React.createElement("div",{style:{width:28,height:28,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:"#000",fontFamily:T.fD}},[user.name[0].toUpperCase()]),
+        React.createElement("div",{style:{width:28,height:28,background:`linear-gradient(135deg,${T.accent},#0084ff)`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:"#000"}},[user.name[0].toUpperCase()]),
         React.createElement("span",{style:{fontSize:13,fontWeight:500}},[user.name]),
-        React.createElement("button",{onClick:onLogout,style:{...btn(),background:"transparent",border:`1px solid ${T.border}`,color:T.muted,padding:"4px 11px",borderRadius:5,fontSize:11}},"Out")
+        React.createElement("button",{onClick:onLogout,style:{...btn(),background:"transparent",border:`1px solid ${T.border}`,color:T.textM,padding:"4px 11px",borderRadius:5,fontSize:11}},"Out")
       )
     ),
     React.createElement("div",{style:{display:"flex",flex:1,overflow:"hidden"}},
       React.createElement("div",{style:{width:176,background:T.surface,borderRight:`1px solid ${T.border}`,padding:"16px 8px",flexShrink:0,overflowY:"auto"}},
-        React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:2,padding:"0 6px",marginBottom:6}},"MENU"),
+        React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2,padding:"0 6px",marginBottom:6}},"MENU"),
         [{id:"games",i:"🎯",l:"Today's Games"},{id:"bankroll",i:"💼",l:"Bankroll"}].map(s=>
-          React.createElement("div",{key:s.id,onClick:()=>setView(s.id),style:{display:"flex",alignItems:"center",gap:7,padding:"8px 8px",borderRadius:6,cursor:"pointer",marginBottom:2,fontSize:12,fontWeight:500,background:view===s.id?T.accentD:"transparent",color:view===s.id?T.accent:T.muted}},
+          React.createElement("div",{key:s.id,onClick:()=>setView(s.id),style:{display:"flex",alignItems:"center",gap:7,padding:"8px",borderRadius:6,cursor:"pointer",marginBottom:2,fontSize:12,fontWeight:500,background:view===s.id?T.accentD:"transparent",color:view===s.id?T.accent:T.textM}},
             React.createElement("span",null,[s.i]),s.l
           )
         ),
         React.createElement("div",{style:{borderTop:`1px solid ${T.border}`,marginTop:12,paddingTop:12}}),
-        React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:2,padding:"0 6px",marginBottom:6}},"SPORTS"),
+        React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2,padding:"0 6px",marginBottom:6}},"SPORTS"),
         sports.map(s=>
-          React.createElement("div",{key:s.id,onClick:()=>{setSf(s.id);setView("games");},style:{display:"flex",alignItems:"center",gap:6,padding:"7px 8px",borderRadius:6,cursor:"pointer",marginBottom:2,fontSize:12,color:sf===s.id&&view==="games"?T.accent:T.muted}},
+          React.createElement("div",{key:s.id,onClick:()=>{setSf(s.id);setView("games");},style:{display:"flex",alignItems:"center",gap:6,padding:"7px 8px",borderRadius:6,cursor:"pointer",marginBottom:2,fontSize:12,color:sf===s.id&&view==="games"?T.accent:T.textM}},
             React.createElement("span",null,[s.i]),s.l
           )
         ),
-        React.createElement("div",{style:{borderTop:`1px solid ${T.border}`,marginTop:12,paddingTop:12,padding:"12px 8px 0"}}),
-        React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:2,marginBottom:8}},"DATA STATUS"),
+        React.createElement("div",{style:{borderTop:`1px solid ${T.border}`,marginTop:12,padding:"12px 8px 0"}}),
+        React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:2,marginBottom:8}},"DATA STATUS"),
         [{l:"Games",v:`${games.length} live`},{l:"Refresh",v:"Every 5 min"},{l:"Status",v:isLive?"Live":"Demo"}].map(s=>
           React.createElement("div",{key:s.l,style:{display:"flex",justifyContent:"space-between",marginBottom:5}},
-            React.createElement("span",{style:{fontSize:9,fontFamily:T.fM,color:T.muted}},[s.l]),
-            React.createElement("span",{style:{fontSize:9,fontFamily:T.fM,color:T.accent}},[s.v])
+            React.createElement("span",{style:{fontSize:9,color:T.textM}},[s.l]),
+            React.createElement("span",{style:{fontSize:9,color:T.accent}},[s.v])
           )
         )
       ),
       React.createElement("div",{style:{flex:1,overflowY:"auto",padding:"22px 26px"}},
         React.createElement("div",{style:{marginBottom:20}},
-          React.createElement("h1",{style:{fontFamily:T.fD,fontSize:24,letterSpacing:".5px"}},"GM, ",React.createElement("span",{style:{color:T.accent}},[user.name.toUpperCase()])," 👋"),
-          React.createElement("div",{style:{fontSize:11,color:T.muted,fontFamily:T.fM,marginTop:3}},[new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})," · ",isLive?`${games.length} live games · updates every 5 min`:"Demo mode — server offline"])
+          React.createElement("h1",{style:{fontSize:24,letterSpacing:".5px"}},"GM, ",React.createElement("span",{style:{color:T.accent}},[user.name.toUpperCase()])," 👋"),
+          React.createElement("div",{style:{fontSize:11,color:T.textM,marginTop:3}},[new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})," · ",isLive?`${games.length} live games · updates every 5 min`:"Demo mode — server offline"])
         ),
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:22}},
           [{l:"LIVE GAMES",v:loading?"...":games.length,c:T.accent,d:"Today's slate"},{l:"NBA",v:loading?"...":games.filter(g=>g.sport==="NBA").length,c:T.accent,d:"Games today"},{l:"MLB",v:loading?"...":games.filter(g=>g.sport==="MLB").length,c:T.accent,d:"Games today"},{l:"NHL",v:loading?"...":games.filter(g=>g.sport==="NHL").length,c:T.accent,d:"Games today"}].map(m=>
             React.createElement("div",{key:m.l,style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:14,transition:"border .2s"},onMouseEnter:e=>e.currentTarget.style.borderColor=T.borderH,onMouseLeave:e=>e.currentTarget.style.borderColor=T.border},
-              React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:1,marginBottom:6}},[m.l]),
-              React.createElement("div",{style:{fontFamily:T.fD,fontSize:24,color:m.c,letterSpacing:"-.5px"}},[m.v]),
-              React.createElement("div",{style:{fontSize:10,marginTop:3,color:T.muted,fontFamily:T.fM}},[m.d])
+              React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:1,marginBottom:6}},[m.l]),
+              React.createElement("div",{style:{fontSize:24,color:m.c,letterSpacing:"-.5px"}},[m.v]),
+              React.createElement("div",{style:{fontSize:10,marginTop:3,color:T.textM}},[m.d])
             )
           )
         ),
         view==="games"&&React.createElement("div",null,
           React.createElement("div",{style:{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}},
-            sports.map(s=>React.createElement("div",{key:s.id,onClick:()=>setSf(s.id),style:{display:"flex",alignItems:"center",gap:5,padding:"6px 13px",borderRadius:7,cursor:"pointer",fontSize:12,fontWeight:600,background:sf===s.id?T.accentD:T.card,border:`1px solid ${sf===s.id?T.accent:T.border}`,color:sf===s.id?T.accent:T.muted}},s.i," ",s.l))
+            sports.map(s=>React.createElement("div",{key:s.id,onClick:()=>setSf(s.id),style:{display:"flex",alignItems:"center",gap:5,padding:"6px 13px",borderRadius:7,cursor:"pointer",fontSize:12,fontWeight:600,background:sf===s.id?T.accentD:T.card,border:`1px solid ${sf===s.id?T.accent:T.border}`,color:sf===s.id?T.accent:T.textM}},s.i," ",s.l))
           ),
           React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
-            React.createElement("div",{style:{fontFamily:T.fD,fontSize:16,letterSpacing:".5px"}},"TODAY'S MATCHUPS"),
-            React.createElement("div",{style:{fontFamily:T.fM,fontSize:10,color:T.muted,background:T.card,border:`1px solid ${T.border}`,padding:"3px 9px",borderRadius:100}},[loading?"Loading...":`${filtered.length} games`])
+            React.createElement("div",{style:{fontSize:16,letterSpacing:".5px"}},"TODAY'S MATCHUPS"),
+            React.createElement("div",{style:{fontSize:10,color:T.textM,background:T.card,border:`1px solid ${T.border}`,padding:"3px 9px",borderRadius:100}},[loading?"Loading...":`${filtered.length} games`])
           ),
           loading?React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}},
             [...Array(4)].map((_,i)=>React.createElement("div",{key:i,style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:16}},
@@ -308,17 +307,17 @@ function Dashboard({user,onLogout}){
               const hS=g.hO>0?"+":"",aS=g.aO>0?"+":"";
               return React.createElement("div",{key:g.id,style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:16,transition:"all .2s"},onMouseEnter:e=>{e.currentTarget.style.borderColor="rgba(0,229,255,.3)";e.currentTarget.style.background=T.cardH;},onMouseLeave:e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.card;}},
                 React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:10}},
-                  React.createElement("span",{style:{fontFamily:T.fM,fontSize:9,color:T.muted,background:"rgba(255,255,255,.04)",padding:"2px 6px",borderRadius:3}},[`${g.e} ${g.sport}`]),
-                  React.createElement("span",{style:{fontFamily:T.fM,fontSize:9,color:T.accent}},[g.time])
+                  React.createElement("span",{style:{fontSize:9,color:T.textM,background:"rgba(255,255,255,.04)",padding:"2px 6px",borderRadius:3}},[`${g.e} ${g.sport}`]),
+                  React.createElement("span",{style:{fontSize:9,color:T.accent}},[g.time])
                 ),
                 React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
-                  React.createElement("div",null,React.createElement("div",{style:{fontFamily:T.fD,fontSize:15}},[g.away]),React.createElement("div",{style:{fontFamily:T.fM,fontSize:12,marginTop:2,color:g.aO<0?T.red:T.green}},[`${aS}${g.aO}`])),
-                  React.createElement("div",{style:{fontFamily:T.fM,fontSize:9,color:T.muted,border:`1px solid ${T.border}`,padding:"2px 6px",borderRadius:3}},"VS"),
-                  React.createElement("div",{style:{textAlign:"right"}},React.createElement("div",{style:{fontFamily:T.fD,fontSize:15}},[g.home]),React.createElement("div",{style:{fontFamily:T.fM,fontSize:12,marginTop:2,color:g.hO<0?T.red:T.green}},[`${hS}${g.hO}`]))
+                  React.createElement("div",null,React.createElement("div",{style:{fontSize:15}},[g.away]),React.createElement("div",{style:{fontSize:12,marginTop:2,color:g.aO<0?T.red:T.green}},[`${aS}${g.aO}`])),
+                  React.createElement("div",{style:{fontSize:9,color:T.textM,border:`1px solid ${T.border}`,padding:"2px 6px",borderRadius:3}},"VS"),
+                  React.createElement("div",{style:{textAlign:"right"}},React.createElement("div",{style:{fontSize:15}},[g.home]),React.createElement("div",{style:{fontSize:12,marginTop:2,color:g.hO<0?T.red:T.green}},[`${hS}${g.hO}`]))
                 ),
                 React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:9,borderTop:`1px solid ${T.border}`}},
-                  React.createElement("span",{style:{fontSize:10,color:T.muted,fontFamily:T.fM}},[`O/U ${g.total}`]),
-                  React.createElement("button",{onClick:()=>setSg(g),style:{...btn(),background:T.accentD,color:T.accent,padding:"5px 12px",borderRadius:5,fontSize:11,fontFamily:T.fM,border:"1px solid rgba(0,229,255,.18)"}},"⚡ AI Pick")
+                  React.createElement("span",{style:{fontSize:10,color:T.textM}},[`O/U ${g.total}`]),
+                  React.createElement("button",{onClick:()=>setSg(g),style:{...btn(),background:T.accentD,color:T.accent,padding:"5px 12px",borderRadius:5,fontSize:11,border:"1px solid rgba(0,229,255,.18)"}},"⚡ AI Pick")
                 )
               );
             })
@@ -326,31 +325,31 @@ function Dashboard({user,onLogout}){
         ),
         view==="bankroll"&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
           React.createElement("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:20}},
-            React.createElement("div",{style:{fontFamily:T.fD,fontSize:14,marginBottom:16}},"KELLY CRITERION CALC"),
+            React.createElement("div",{style:{fontSize:14,marginBottom:16}},"KELLY CRITERION CALC"),
             [["BANKROLL ($)","b","e.g. 1000"],["WIN PROB (%)","p","e.g. 55"],["DECIMAL ODDS","o","e.g. 1.91"]].map(([l,k,ph])=>
               React.createElement("div",{key:k,style:{marginBottom:11}},
-                React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:1,marginBottom:4}},[l]),
+                React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:1,marginBottom:4}},[l]),
                 React.createElement("input",{style:inp,type:"number",placeholder:ph,value:bk[k],onChange:setBkK(k),onFocus:e=>e.target.style.borderColor=T.accent,onBlur:e=>e.target.style.borderColor=T.border})
               )
             ),
             React.createElement("div",{style:{background:"rgba(0,229,255,.04)",border:"1px solid rgba(0,229,255,.12)",borderRadius:8,padding:13}},
-              React.createElement("div",{style:{fontSize:9,fontFamily:T.fM,color:T.muted,letterSpacing:1,marginBottom:6}},"RECOMMENDED BET"),
-              kelly?React.createElement("div",null,React.createElement("div",{style:{fontFamily:T.fD,fontSize:22,color:T.accent}},[`$${kelly.bet}`]),React.createElement("div",{style:{fontSize:10,color:T.muted,fontFamily:T.fM,marginTop:2}},[`${kelly.pct}% · ½ Kelly`])):React.createElement("div",{style:{fontSize:12,color:T.muted,fontFamily:T.fM}},"Enter values above")
+              React.createElement("div",{style:{fontSize:9,color:T.textM,letterSpacing:1,marginBottom:6}},"RECOMMENDED BET"),
+              kelly?React.createElement("div",null,React.createElement("div",{style:{fontSize:22,color:T.accent}},[`$${kelly.bet}`]),React.createElement("div",{style:{fontSize:10,color:T.textM,marginTop:2}},[`${kelly.pct}% · ½ Kelly`])):React.createElement("div",{style:{fontSize:12,color:T.textM}},"Enter values above")
             )
           ),
           React.createElement("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:20}},
-            React.createElement("div",{style:{fontFamily:T.fD,fontSize:14,marginBottom:16}},"BET HISTORY"),
+            React.createElement("div",{style:{fontSize:14,marginBottom:16}},"BET HISTORY"),
             [{g:"Lakers vs Celtics",p:"Lakers -110 · $50",r:"+$45",w:true},{g:"Chiefs vs Bills",p:"Chiefs -160 · $80",r:"+$50",w:true},{g:"Yankees O8.5",p:"Over -110 · $40",r:"-$40",w:false},{g:"Nuggets vs Warriors",p:"Nuggets -140 · $70",r:"+$50",w:true},{g:"Dodgers vs Giants",p:"Dodgers -170 · $85",r:"+$50",w:true}].map((h,i)=>
               React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px",background:"rgba(255,255,255,.02)",borderRadius:7,marginBottom:6}},
-                React.createElement("div",null,React.createElement("div",{style:{fontSize:12,fontWeight:500}},[h.g]),React.createElement("div",{style:{fontSize:10,color:T.muted,fontFamily:T.fM,marginTop:2}},[h.p])),
-                React.createElement("div",{style:{fontFamily:T.fM,fontWeight:600,fontSize:13,color:h.w?T.green:T.red}},[h.r])
+                React.createElement("div",null,React.createElement("div",{style:{fontSize:12,fontWeight:500}},[h.g]),React.createElement("div",{style:{fontSize:10,color:T.textM,marginTop:2}},[h.p])),
+                React.createElement("div",{style:{fontWeight:600,fontSize:13,color:h.w?T.green:T.red}},[h.r])
               )
             )
           )
         )
       )
     ),
-    React.createElement("div",{style:{padding:"8px 24px",background:"#020508",borderTop:"1px solid #0a1508",fontFamily:T.fM,fontSize:9,color:"#1e3020",textAlign:"center",lineHeight:1.7,flexShrink:0}},
+    React.createElement("div",{style:{padding:"8px 24px",background:"#020508",borderTop:"1px solid #0a1508",fontSize:9,color:"#1e3020",textAlign:"center",lineHeight:1.7,flexShrink:0}},
       "⚠ Entertainment & information only — not betting advice · Must be ",React.createElement("strong",{style:{color:"#2a5030"}},"21+")," · Problem gambling: ",React.createElement("strong",{style:{color:"#2a5030"}},"1-800-522-4700")," · Free · Confidential · 24/7"
     ),
     sg&&React.createElement(AIModal,{game:sg,onClose:()=>setSg(null)})
